@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CWS_MANAGER
+  SUPER_ADMIN
+  SUPERVISOR
+  MD
+  FINANCE
+  OPERATIONS
+  QUALITY
+}
+
+enum DeliveryType {
+  DIRECT_DELIVERY
+  SITE_COLLECTION
+  SUPPLIER
+}
+
+enum GradeType {
+  A
+  B
+}
+
+enum QualityStatus {
+  PENDING
+  TESTING
+  TESTED
+  COMPLETED
+}
+
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      UserRole
+  cws       CWS?     @relation(fields: [cwsId], references: [id])
+  cwsId     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CWS {
+  id                      Int              @id @default(autoincrement())
+  name                    String           @unique
+  code                    String           @unique @default("MSH")
+  location                String
+  is_wet_parchment_sender Int          @default(0)
+  users                   User[]
+  purchases               Purchase[]
+  siteCollections         SiteCollection[]
+  processing              Processing[]
+  qualities               Quality[] 
+  qualityDelivery         QualityDelivery[] 
+  havespeciality          Boolean          @default(false)
+  pricing                 CWSPricing[]
+  sourceTransfers         WetTransfer[]    @relation("SourceCWS")
+  destinationTransfers    WetTransfer[]    @relation("DestinationCWS")
+  senderMappings          CWSMapping[]     @relation("SenderCWS")
+  receiverMappings        CWSMapping[]     @relation("ReceivingCWS")
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+}
+
+model Purchase {
+  id               Int             @id @default(autoincrement())
+  deliveryType     DeliveryType
+  totalKgs         Float
+  totalPrice       Float
+  cherryPrice      Float
+  transportFee     Float
+  commissionFee    Float
+  grade            GradeType
+  cws              CWS             @relation(fields: [cwsId], references: [id])
+  cwsId            Int
+  batchNo          String          @default("24NYK2105CA")
+  purchaseDate     DateTime        @default(now())
+  siteCollection   SiteCollection? @relation(fields: [siteCollectionId], references: [id], onDelete: SetNull)
+  siteCollectionId Int?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model SiteCollection {
+  id        Int                  @id @default(autoincrement())
+  name      String
+  cws       CWS                  @relation(fields: [cwsId], references: [id])
+  cwsId     Int
+  purchases Purchase[]
+  fees      SiteCollectionFees[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model Processing {
+  id             Int          @id @default(autoincrement())
+  batchNo        String
+  processingType String
+  totalKgs       Float
+  grade          GradeType
+  startDate      DateTime     @default(now())
+  endDate        DateTime?
+  status         String       @default("PENDING")
+  notes          String?
+  cws            CWS          @relation(fields: [cwsId], references: [id])
+  cwsId          Int
+  baggingOffs    BaggingOff[]
+  qualities      Quality[] 
+  qualityDelivery         QualityDelivery[] 
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model BaggingOff {
+  id             Int        @id @default(autoincrement())
+  batchNo        String
+  processingId   Int
+  processing     Processing @relation(fields: [processingId], references: [id])
+  date           DateTime
+  outputKgs      Json
+  totalOutputKgs Float
+  processingType String
+  status         String     @default("COMPLETED")
+  qualityStatus  String       @default("PENDING")  // New field to indicate if the baggingOff is sent to Testing module
+  notes          String?
+  hgtransported  String       @default("[]")   // JSON string to store grades (e.g., A1, A0) that have been transported before baggingOff completion
+  transfers      Transfer[]
+  qualities      Quality[] 
+  qualityDelivery         QualityDelivery[] 
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+
+// model Transfer {
+//   id                   Int        @id @default(autoincrement())
+//   batchNo              String
+//   baggingOff           BaggingOff @relation(fields: [baggingOffId], references: [id])
+//   baggingOffId         Int
+//   gradeGroup           String?    // HIGH or LOW
+//   outputKgs            Json?      
+//   gradeDetails         Json?      
+//   truckNumber          String?
+//   driverName           String?
+//   driverPhone          String?
+//   numberOfBags         Int?      
+//   cupProfile           String?    
+//   cupProfilePercentage Float?     
+//   transferMode         String?    // BOTH, HIGH, or LOW
+//   transferDate         DateTime   @default(now())
+//   status               String     @default("COMPLETED")
+//   notes                String?
+//   isGrouped            Boolean    @default(false)  // New field to indicate if this is part of a grouped transfer
+//   groupBatchNo         String?    // New field to store the grouped batch number
+//   createdAt            DateTime   @default(now())
+//   updatedAt            DateTime   @updatedAt
+// }
+
+model Transfer {
+  id                   Int        @id @default(autoincrement())
+  batchNo              String
+  baggingOff           BaggingOff @relation(fields: [baggingOffId], references: [id])
+  baggingOffId         Int
+  gradeGroup           String?    // HIGH or LOW
+  outputKgs            Json?      
+  gradeDetails         Json?      
+  truckNumber          String?
+  driverName           String?
+  driverPhone          String?
+  numberOfBags         Int?      
+  cupProfile           String?    
+  cupProfilePercentage Float?     
+  transferMode         String?    // BOTH, HIGH, or LOW
+  transferDate         DateTime   @default(now())
+  status               String     @default("COMPLETED")
+  notes                String?
+  isGrouped            Boolean    @default(false)  // Indicates if this is part of a grouped transfer
+  groupBatchNo         String?    // Store the grouped batch number
+  transportGroupId     String?    // New field: unique ID for transfers done together
+  qualityDelivery      QualityDelivery[] 
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+}
+
+model WetTransfer {
+  id               Int      @id @default(autoincrement())
+  batchNo          String
+  processingId     Int
+  date             DateTime @default(now())
+  sourceCwsId      Int
+  sourceCws        CWS      @relation("SourceCWS", fields: [sourceCwsId], references: [id])
+  destinationCwsId Int
+  destinationCws   CWS      @relation("DestinationCWS", fields: [destinationCwsId], references: [id])
+  totalKgs         Float
+  outputKgs        Float
+  grade            String
+  processingType   String
+  moistureContent  Float    @default(12.0)
+  status           String   @default("COMPLETED")
+  notes            String?
+  receivedDate      DateTime?
+  moistureAtReceival Float?
+  defectPercentage   Float?
+  cleanCupScore      Float?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model GlobalFees {
+  id            Int      @id @default(autoincrement())
+  commissionFee Float // Global commission fee for site collections
+  transportFee  Float // Default transport fee for direct delivery and supplier
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CWSPricing {
+  id           Int      @id @default(autoincrement())
+  cws          CWS      @relation(fields: [cwsId], references: [id])
+  cwsId        Int
+  gradeAPrice  Float // Cherry A price for this CWS
+  transportFee Float // Transport fee for direct delivery and supplier at this CWS
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SiteCollectionFees {
+  id               Int            @id @default(autoincrement())
+  siteCollection   SiteCollection @relation(fields: [siteCollectionId], references: [id], onDelete: Cascade)
+  siteCollectionId Int
+  transportFee     Float
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model CWSMapping {
+  id              Int      @id @default(autoincrement())
+  senderCwsId     Int
+  senderCws       CWS      @relation("SenderCWS", fields: [senderCwsId], references: [id])
+  receivingCwsId  Int
+  receivingCws    CWS      @relation("ReceivingCWS", fields: [receivingCwsId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SampleStorage {
+  id          Int       @id @default(autoincrement())
+  name        String    // Example: "A1", "B2", "C3"
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  qualities0  Quality[] @relation("sampleStorage_0") // Relation for A0or N1 or H1 of  samples Test
+  qualities1  Quality[] @relation("SampleStorage_1") // Relation for A1 or N2 or H2 of  samples Test
+  qualitiesdelivery     QualityDelivery[] @relation("sampleStorage") 
+}
+
+model Quality {
+  id                  Int           @id @default(autoincrement())
+  batchNo             String
+  cws                 CWS           @relation(fields: [cwsId], references: [id])
+  cwsId               Int
+  processingId        Int
+  processing          Processing    @relation(fields: [processingId], references: [id])
+  baggingOffId        Int
+  baggingOff          BaggingOff    @relation(fields: [baggingOffId],references:[id])
+  cwsMoisture1        Json          // Example: {"A0": 2, "A1": 2}
+  status              QualityStatus @default(PENDING)  // Example: "Pending"
+  labMoisture         Json          // Example: {"A0": 2, "A1": 2}
+  screen              Json          // Example: {"A0": {"16+": 0.18, "15+": 0.17}, "A1": {"16+": 0.18, "15+": 0.17}}
+  defect              Json          // Example: {"A0": 2, "A1": 2}
+  ppScore             Json          // Example: {"A0": 98, "A1": 60.4}
+  sampleStorageId_0   Int          // ID for A0
+  sampleStorage_0     SampleStorage @relation("sampleStorage_0", fields: [sampleStorageId_0], references: [id])
+  sampleStorageId_1   Int          // ID for A1
+  sampleStorage_1     SampleStorage @relation("SampleStorage_1", fields: [sampleStorageId_1], references: [id])
+  notes               Json          // Example: {"A0": "nothing to change ", "A1": "nothing"}
+  category            Json          // Example: {"A0": C1, "A1": A1}
+  qualitiesdelivery   QualityDelivery[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+
+model QualityDelivery {
+  id                  Int           @id @default(autoincrement())
+  batchNo             String
+  transferId          Int
+  transfer            Transfer      @relation(fields: [transferId], references: [id])
+  qualityId           Int
+  quality             Quality       @relation(fields: [qualityId], references: [id])
+  baggingOffId        Int
+  baggingOff          BaggingOff    @relation(fields: [baggingOffId],references:[id])
+  processingId        Int
+  processing          Processing    @relation(fields: [processingId], references: [id])
+  cwsId               Int
+  cws                 CWS           @relation(fields: [cwsId], references: [id])
+  status              QualityStatus @default(PENDING)  // Example: "Pending"
+  gradeKey            String
+  cwsMoisture         Float
+  labMoisture         Float          
+  screen              Json          // Example:  {"16+": 0.18, "15+": 0.17}, "A1": {"16+": 0.18, "15+": 0.17}
+  defect              Float          
+  ppScore             Float          
+  sampleStorageId     Int          
+  sampleStorage       SampleStorage @relation("sampleStorage", fields: [sampleStorageId], references: [id])
+  categoryKgs         Json 
+  notes               String         
+  category            String         
+  newCategory         String       @default("")   
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+}
+ 
