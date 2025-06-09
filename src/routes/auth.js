@@ -288,14 +288,12 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { redisClient } from '../../index.js';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // Middleware to verify admin role
 const isAdmin = (req, res, next) => {
-
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -316,15 +314,7 @@ const isAdmin = (req, res, next) => {
 
 // Get all users
 router.get('/users', async (req, res) => {
-  const cacheKey = 'users:all';
-
   try {
-    // Try to get cached data
-    // const cachedUsers = await redisClient.get(cacheKey);
-    // if (cachedUsers) {
-    //   return res.json(JSON.parse(cachedUsers));
-    // }
-
     const users = await prisma.user.findMany({
       orderBy: {
         id: 'desc'
@@ -347,13 +337,6 @@ router.get('/users', async (req, res) => {
         }
       }
     });
-
-    // Cache the result
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(users),
-      { EX: 3600 } // Cache for 1 hour
-    );
 
     res.json(users);
   } catch (error) {
@@ -380,9 +363,6 @@ router.post('/register', async (req, res) => {
     const user = await prisma.user.create({
       data: userData,
     });
-
-    // Invalidate users cache
-    await redisClient.del('users:all');
 
     // Don't send back the password in the response
     const { password: _, ...userWithoutPassword } = user;
@@ -463,13 +443,6 @@ router.put('/users/:id', async (req, res) => {
       }
     });
 
-    // Invalidate cache
-    await Promise.all([
-      redisClient.del('users:all'),
-      redisClient.del(`users:${userId}`),
-      redisClient.del(`users:me:${userId}`)
-    ]);
-
     res.json({
       message: 'User updated successfully',
       user: updatedUser
@@ -514,7 +487,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role, cwsId: user && user.cwsId ? user.cwsId : null },
       process.env.JWT_SECRET,
@@ -531,13 +503,6 @@ router.post('/login', async (req, res) => {
       },
       cws: user.cws
     };
-
-    // Cache user info
-    await redisClient.set(
-      `users:${user.id}`,
-      JSON.stringify(userResponse),
-      { EX: 3600 } // Cache for 1 hour
-    );
 
     res.json(userResponse);
   } catch (error) {
@@ -556,13 +521,6 @@ router.get('/me', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const cacheKey = `users:me:${decoded.userId}`;
-
-    // Try to get cached data
-    // const cachedUser = await redisClient.get(cacheKey);
-    // if (cachedUser) {
-    //   return res.json(JSON.parse(cachedUser));
-    // }
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -574,13 +532,6 @@ router.get('/me', async (req, res) => {
         cws: true,
       },
     });
-
-    // Cache the result
-    await redisClient.set(
-      cacheKey,
-      JSON.stringify(user),
-      { EX: 3600 } // Cache for 1 hour
-    );
 
     res.json(user);
   } catch (error) {
@@ -607,13 +558,6 @@ router.delete('/users/:id', isAdmin, async (req, res) => {
     await prisma.user.delete({
       where: { id: userId }
     });
-
-    // Invalidate cache
-    await Promise.all([
-      redisClient.del('users:all'),
-      redisClient.del(`users:${userId}`),
-      redisClient.del(`users:me:${userId}`)
-    ]);
 
     res.json({
       message: 'User deleted successfully',
