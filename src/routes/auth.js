@@ -6,6 +6,8 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 const prisma = new PrismaClient();
 
+const JWT_SECRET= "thisismyjwtsecret"
+
 // Middleware to verify admin role
 const isAdmin = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -16,7 +18,7 @@ const isAdmin = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token,JWT_SECRET);
     if (decoded.role !== 'ADMIN' && decoded.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -106,7 +108,7 @@ router.put('/users/:id', async (req, res) => {
     }
 
     // Verify token and get user info
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token,JWT_SECRET);
     const userId = parseInt(id);
 
     // Only allow users to update their own account or admins to update any account
@@ -203,7 +205,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role, cwsId: user && user.cwsId ? user.cwsId : null },
-      process.env.JWT_SECRET,
+     JWT_SECRET,
       { expiresIn: '1d' }
     );
 
@@ -234,7 +236,7 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'Access denied' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token,JWT_SECRET);
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
