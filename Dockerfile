@@ -11,11 +11,8 @@ RUN npm install --omit=dev
 # Copy prisma schema first
 COPY prisma ./prisma
 
-# Generate Prisma client with correct binary targets
+# Generate Prisma client
 RUN npx prisma generate
-
-#  Apply migrations
-RUN npx prisma migrate deploy
 
 # Copy the rest of your application files
 COPY . .
@@ -23,5 +20,5 @@ COPY . .
 # Expose the port your Express app runs on (default 3000)
 EXPOSE 3000
 
-# Define the command to run the app in prod
-CMD ["node", "index.js"]
+# Start script: run migrations and start app
+CMD ["sh", "-c", "npx prisma migrate deploy && node index.js"]
