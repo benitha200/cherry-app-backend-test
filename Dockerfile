@@ -14,6 +14,9 @@ COPY prisma ./prisma
 # Generate Prisma client with correct binary targets
 RUN npx prisma generate
 
+#  Apply migrations
+RUN npx prisma migrate deploy
+
 # Copy the rest of your application files
 COPY . .
 
