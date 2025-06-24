@@ -20,5 +20,5 @@ COPY . .
 # Expose the port your Express app runs on (default 3000)
 EXPOSE 3000
 
-# Define the command to run the app
+# Define the command to run the app in prod
 CMD ["node", "index.js"]
