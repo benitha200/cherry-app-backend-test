@@ -17,7 +17,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     environment: DOCKER_IMAGE
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -37,16 +37,20 @@ jobs:
       with:
         images: ${{ env.DOCKER_IMAGE }}
         tags: |
-          # Branch event
           type=ref,event=branch
-          # Tag event
           type=ref,event=tag
-          # PR event
           type=ref,event=pr
-          # Default latest for main branch
           type=raw,value=latest,enable={{is_default_branch}}
-          # Custom version tag
           type=raw,value=v1.0.1
+
+    - name: ✅ Check if Dockerfile exists
+      run: |
+        if [ ! -f Dockerfile ]; then
+          echo "❌ Dockerfile not found in the repository root!"
+          exit 1
+        else
+          echo "✅ Dockerfile found, proceeding with the build."
+        fi
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
