@@ -21,4 +21,4 @@ COPY . .
 EXPOSE 3000
 
 # Start script: run migrations and start app
-CMD ["sh", "-c", "npx prisma migrate dev && node index.js"]
+CMD ["sh", "-c", "npx prisma db push && node index.js"]
