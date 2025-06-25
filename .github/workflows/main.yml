@@ -1,67 +1,147 @@
-name: Build and Push Docker Image
+# name: Build and Push Docker Image
+
+# on:
+#   push:
+#     branches:
+#       - main
+#     tags:
+#       - 'v*'
+#   pull_request:
+#     branches:
+#       - main
+
+# env:
+#   DOCKER_IMAGE: iyuyisenga/cherry-app-backend-test
+
+# jobs:
+#   build-and-push:
+#     runs-on: ubuntu-latest
+#     environment: DOCKER_IMAGE
+
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+
+#     - name: Set up Docker Buildx
+#       uses: docker/setup-buildx-action@v3
+
+#     - name: Log in to Docker Hub
+#       uses: docker/login-action@v3
+#       with:
+#         username: ${{ secrets.DOCKER_USERNAME }}
+#         password: ${{ secrets.DOCKER_PASSWORD }}
+
+#     - name: Extract metadata
+#       id: meta
+#       uses: docker/metadata-action@v5
+#       with:
+#         images: ${{ env.DOCKER_IMAGE }}
+#         tags: |
+#           type=ref,event=branch
+#           type=ref,event=tag
+#           type=ref,event=pr
+#           type=raw,value=latest,enable={{is_default_branch}}
+#           type=raw,value=v1.0.1
+
+#     - name: ✅ Check if Dockerfile exists
+#       run: |
+#         if [ ! -f Dockerfile ]; then
+#           echo "❌ Dockerfile not found in the repository root!"
+#           exit 1
+#         else
+#           echo "✅ Dockerfile found, proceeding with the build."
+#         fi
+
+#     - name: Build and push Docker image
+#       uses: docker/build-push-action@v5
+#       with:
+#         context: .
+#         platforms: linux/amd64,linux/arm64
+#         push: true
+#         tags: ${{ steps.meta.outputs.tags }}
+#         labels: ${{ steps.meta.outputs.labels }}
+#         cache-from: type=gha
+#         cache-to: type=gha,mode=max
+
+#     - name: Image digest
+#       run: echo ${{ steps.build-and-push.outputs.digest }}
+
+
+name: Build, Push Docker Image and Update Samplecharts
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - 'v*'
-  pull_request:
-    branches:
-      - main
+      - 'v*.*.*'
+
+permissions:
+  contents: write  # Allow pushing updates to repos
 
 env:
   DOCKER_IMAGE: iyuyisenga/cherry-app-backend-test
+  SAMPLECHARTS_REPO: benitha200/samplecharts
+  SAMPLECHARTS_PATH: charts/cherryapp-chart/values.yaml
 
 jobs:
-  build-and-push:
+  build-and-update:
     runs-on: ubuntu-latest
     environment: DOCKER_IMAGE
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.DOCKER_IMAGE }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=tag
-          type=ref,event=pr
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=v1.0.1
+      - name: ✅ Check if Dockerfile exists
+        run: |
+          if [ ! -f Dockerfile ]; then
+            echo "❌ Dockerfile not found!"
+            exit 1
+          else
+            echo "✅ Dockerfile found."
+          fi
 
-    - name: ✅ Check if Dockerfile exists
-      run: |
-        if [ ! -f Dockerfile ]; then
-          echo "❌ Dockerfile not found in the repository root!"
-          exit 1
-        else
-          echo "✅ Dockerfile found, proceeding with the build."
-        fi
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ github.ref_name }}
+            ${{ env.DOCKER_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Clone samplecharts repo
+        run: |
+          git clone https://x-access-token:${{ secrets.SAMPLECHARTS_PAT }}@github.com/${{ env.SAMPLECHARTS_REPO }}.git
 
-    - name: Image digest
-      run: echo ${{ steps.build-and-push.outputs.digest }}
+      - name: Update backend image tag in samplecharts values.yaml
+        run: |
+          TAG="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
+          VALUES_FILE="samplecharts/${{ env.SAMPLECHARTS_PATH }}"
+          echo "Updating backend image tag to ${TAG} in ${VALUES_FILE}"
+          
+          # Update only the first occurrence of 'tag:'
+          sed -i "0,/^\(\s*tag:\s*\).*$/s//\1${TAG}/" "$VALUES_FILE"
+      
+          cat "$VALUES_FILE"
+
+      - name: Commit and push updated values.yaml
+        working-directory: samplecharts
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add ${{ env.SAMPLECHARTS_PATH }}
+          git commit -m "Update backend image tag to ${GITHUB_REF_NAME}"
+          git push origin main
+
