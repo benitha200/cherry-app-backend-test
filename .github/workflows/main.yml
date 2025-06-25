@@ -130,7 +130,10 @@ jobs:
           TAG="${GITHUB_REF_NAME:-${GITHUB_REF#refs/tags/}}"
           VALUES_FILE="samplecharts/${{ env.SAMPLECHARTS_PATH }}"
           echo "Updating backend image tag to ${TAG} in ${VALUES_FILE}"
-          sed -i "s|^\(\s*tag:\s*\).*|\1${TAG}|" "$VALUES_FILE"
+          
+          # Update only the first occurrence of 'tag:'
+          sed -i "0,/^\(\s*tag:\s*\).*$/s//\1${TAG}/" "$VALUES_FILE"
+      
           cat "$VALUES_FILE"
 
       - name: Commit and push updated values.yaml
