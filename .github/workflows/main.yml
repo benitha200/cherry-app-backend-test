@@ -85,6 +85,7 @@ env:
 jobs:
   build-and-update:
     runs-on: ubuntu-latest
+    environment: DOCKER_IMAGE
 
     steps:
       - name: Checkout backend repo
