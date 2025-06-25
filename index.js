@@ -34,6 +34,9 @@ const app = express();
 const corsOptions = {
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
     'http://localhost:3300',
     'http://localhost:5173',
     'https://cherryapp.sucafina.com:9900',
