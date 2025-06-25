@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = "mysql://cherryuser:cherrypassword@mysql:3306/cherrydb"
+  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
