@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
         location,
         code,
         havespeciality: havespeciality || false,
-        is_wet_parchment_sender: is_wet_parchment_sender !== undefined ? is_wet_parchment_sender : true
+        is_wet_parchment_sender: is_wet_parchment_sender !== undefined ? is_wet_parchment_sender : 1
       },
     });
     
