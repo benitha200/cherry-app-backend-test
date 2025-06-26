@@ -172,9 +172,9 @@ import swaggerJSDoc from "swagger-jsdoc";
 dotenv.config();
 
 // DATABASE URL CONSTRUCTION - Add this BEFORE Prisma initialization
-const databaseUrl = `mysql://${process.env.DB_USER}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
-console.log("Database URL:", databaseUrl.replace(/:([^:@]+)@/, ':****@')); // Hide password in logs
-process.env.DATABASE_URL = databaseUrl;
+// const databaseUrl = `mysql://${process.env.DB_USER}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+// console.log("Database URL:", databaseUrl.replace(/:([^:@]+)@/, ':****@')); // Hide password in logs
+// process.env.DATABASE_URL = databaseUrl;
 
 // Routes
 import authRoutes from './src/routes/auth.js';
@@ -185,7 +185,7 @@ import processingRoutes from './src/routes/processing.js';
 import processingsRoutes from './src/routes/batches/batches.js';
 import BagOffRoutes from './src/routes/bagoff.js';
 import TransferRoutes from './src/routes/transfer.js';
-import PricingRoutes from './src/routes/pricing.js';
+import PricingRoutes from './src/routes/price.js';
 import WetTransfer from './src/routes/wettransfer.js';
 import SampleStorageRoutes from './src/routes/quality/sampleStorage.js';
 import QualityRoutes from './src/routes/quality/quality.js';
@@ -205,6 +205,8 @@ const corsOptions = {
     'http://localhost:3001',
     'http://localhost:3002',
     'http://localhost:3003',
+    'http://localhost:3004',
+    'http://localhost:3005',
     'http://localhost:3300',
     'http://localhost:5173',
     // Add ingress hostnames
